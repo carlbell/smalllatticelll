@@ -13,7 +13,7 @@ parser.add_argument('-bases_out', default="bases_out.txt")
 parser.add_argument('-hermite_out', default="hermite_out.txt")
 parser.add_argument('--write_bases', default=False, action='store_true')
 parser.add_argument('--write_hermite', default=False, action='store_true')
-parser.add_argument('--read_bases', default=False, action='store_true')
+parser.add_argument('-bases_in', default="bases_in.txt")
 args = parser.parse_args()
 
 
@@ -22,7 +22,7 @@ def strip_zero_rows(basis):
 
 def get_basis(n, m, q, rng):
     A = rng.integers(low=0, high=q, size=(n,m))
-    print(A)
+    #print(A)
 
     c = np.concatenate([np.ones(n), np.zeros(m)])
     temp = -q * np.identity(n)
@@ -71,7 +71,7 @@ def get_basis(n, m, q, rng):
               solutions = solutions[:-1]
 
     solutions = np.array(solutions).astype(int)
-    print(solutions)
+    #print(solutions)
     return solutions
 
 
@@ -168,9 +168,23 @@ if args.write_bases:
         n = args.n
         m = args.m
         q = args.q
-        for i in range(10):
+        for i in range(3):
             possible_basis = get_basis(n, m, q, rng)
+            H, L = row_style_hermite_normal_form(possible_basis)
+            possible_basis = H
             possible_basis = strip_zero_rows(possible_basis)
             if len(possible_basis) == n:
+                print(possible_basis)
                 np.save(bases_out, possible_basis)
-
+if args.write_hermite:
+    with open(args.hermite_out, "wb") as hermite_out, open(args.bases_in, "rb") as bases_in:
+        print("\n\n\n HERMITE")
+        n = args.n
+        m = args.m
+        array_in_question = np.load(bases_in)
+        while(True):
+            print(array_in_question) 
+            try:
+                array_in_question = np.load(bases_in)
+            except Exception:
+                break
