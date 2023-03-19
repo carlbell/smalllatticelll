@@ -1,3 +1,4 @@
+import math
 from hsnf import column_style_hermite_normal_form, row_style_hermite_normal_form
 from numpy.random import default_rng
 import scipy
@@ -20,9 +21,21 @@ args = parser.parse_args()
 def strip_zero_rows(basis):
     return basis[~np.all(basis == 0, axis=1)]
 
-def get_basis(n, m, q, rng):
+
+# generate solution by random HNF algorithm from https://doi.org/10.3390/e23111509
+def get_basis_hnf(n, M, rng):
+    pass
+
+# generate random cyclic lattice by method tbd
+def get_basis_cyclic(n, q, rng):
+    pass
+
+
+# generate basis from solution to system of congruences
+def get_basis_qary(n, m, q, rng):
     A = rng.integers(low=0, high=q, size=(n,m))
-    #print(A)
+    print("\n\n" + "A:\n")
+    print(A)
 
     c = np.concatenate([np.ones(n), np.zeros(m)])
     temp = -q * np.identity(n)
@@ -45,14 +58,16 @@ def get_basis(n, m, q, rng):
     #print("Aeq", Aeq)
     #print("beq", beq)
     #print("Aeq*solution", np.matmul(Aeq, prev_x))
-
+    if prev_x is None:
+        print("No lattice found")
+        quit()
 
 
     prev_x = np.concatenate([np.zeros(n), prev_x[n:]])
     solutions.append(prev_x[n:])
     Aub = np.append(Aub, [prev_x], axis=0)
     bub = np.append(bub, [sum(prev_x)])
-    for i in range(10):
+    for i in range(10*n):
         #print(Aub)
         solution = scipy.optimize.linprog(c, A_ub=Aub, b_ub=bub, A_eq=Aeq, b_eq=beq, bounds=mybounds, method='highs', callback=None, options=None, x0=None, integrality=np.ones(n+m))
         prev_x = solution['x']
@@ -168,8 +183,9 @@ if args.write_bases:
         n = args.n
         m = args.m
         q = args.q
+        np.save(bases_out, np.array([n, m, q]))
         for i in range(3):
-            possible_basis = get_basis(n, m, q, rng)
+            possible_basis = get_basis_qary(n, m, q, rng)
             H, L = row_style_hermite_normal_form(possible_basis)
             possible_basis = H
             possible_basis = strip_zero_rows(possible_basis)
@@ -177,14 +193,23 @@ if args.write_bases:
                 print(possible_basis)
                 np.save(bases_out, possible_basis)
 if args.write_hermite:
-    with open(args.hermite_out, "wb") as hermite_out, open(args.bases_in, "rb") as bases_in:
+    with open(args.hermite_out, "w") as hermite_out, open(args.bases_in, "rb") as bases_in:
         print("\n\n\n HERMITE")
-        n = args.n
-        m = args.m
+        params = np.load(bases_in)
+        (n, m, q) = (params[0], params[1], params[2])
         array_in_question = np.load(bases_in)
         while(True):
             print(array_in_question) 
             try:
+                #print([math.sqrt(sum(x)) for x in array_in_question])
+                array_in_question = np.array(sorted(array_in_question, key=lambda x: math.sqrt(sum([y**2 for y in x]))))
+                print(array_in_question)
+                det = math.sqrt(np.linalg.det(np.matmul(array_in_question, array_in_question.transpose())))
+                b1 = math.sqrt(sum(array_in_question[0]))
+                hermite_factor = float(b1) / float(det)
+                print("det: ", det, ", b1: ", b1, " hermite: ", hermite_factor)
+                hermite_out.write(str(hermite_factor) + "\n")
                 array_in_question = np.load(bases_in)
-            except Exception:
+            except Exception as exception:
+                print("exception in hermite while loop", exception)
                 break
