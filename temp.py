@@ -10,11 +10,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n', default=2, type=int)
 parser.add_argument('-m', default=4, type=int)
 parser.add_argument('-q', default=7, type=int)
+
 parser.add_argument('-bases_out', default="bases_out.txt")
+parser.add_argument('-hr_bases_out', default="hr_bases_out.txt")
 parser.add_argument('-hermite_out', default="hermite_out.txt")
 parser.add_argument('--write_bases', default=False, action='store_true')
 parser.add_argument('--write_hermite', default=False, action='store_true')
-parser.add_argument('-bases_in', default="bases_in.txt")
+parser.add_argument('-bases_in', default="bases_out.txt")
 args = parser.parse_args()
 
 
@@ -24,14 +26,59 @@ def strip_zero_rows(basis):
 
 # generate solution by random HNF algorithm from https://doi.org/10.3390/e23111509
 def get_basis_hnf(n, M, rng):
-    pass
+    # Step 1: Generate h_{11},⋯,h_{n−1,n−1}
+    #print("Step 1")
+    D = np.zeros((n,1))
+    D[0] = 1
+    h = np.zeros((n,n))
+    for i in range(1,n):
+        j, s = 1, 1
+        yi = np.random.uniform(0,1)
+        #print(yi, scipy.special.zeta(n-i+1)*yi)
+        while s < scipy.special.zeta(n-i+1)*yi:
+            j += 1
+            s = s + j ** (-1 * (n-i+1))
+            #print("j: ", j)
+            #print("s: ", s)
+        D[(i)] = D[(i-1)] * j
+        h[(i)-1,(i)-1] = j
+
+    # Step 2: Generate hnn
+    #print("Step 2")
+    #print(h)
+    #print(D)
+    y = np.random.uniform(0,1)
+    #print(y)
+    z = y**(1/n)
+    #print(z)
+    z = z * np.floor(M/D[n-1])
+    #print(z)
+    if z > 0.5:
+        z = np.around(z)
+    else:
+        z = 1
+    h[(n)-1,(n)-1] = z
+    
+
+    # Step 3: Generate hij(i≠j)
+    #print("Step 3)")
+    print(h)
+    #print(D)
+    for j in range(n):
+        for i in range(j):
+            h[i,j] = np.random.randint(0,h[j,j])
+        for i in range(j+1,n):
+            h[i,j] = 0
+
+    return h
+
 
 # generate random cyclic lattice by method tbd
 def get_basis_cyclic(n, q, rng):
     pass
 
 
-# generate basis from solution to system of congruences
+# generate basis from solution to system of congruences - Ajtai
 def get_basis_qary(n, m, q, rng):
     A = rng.integers(low=0, high=q, size=(n,m))
     print("\n\n" + "A:\n")
@@ -174,42 +221,58 @@ def LLL(basis):
 # keep creating random bases, note ||b_1||/det(L)
 
 
+def calc_hermite_factor(reduced_input_basis):
+    b1_mag = math.sqrt(sum([float(x)**2 for x in reduced_input_basis[0]]))
+    det = math.sqrt(np.linalg.det(np.matmul(reduced_input_basis, reduced_input_basis.transpose())))
+    basis_dim = len(reduced_input_basis)
+    hermite_factor =  b1_mag / (det ** (1.0/float(basis_dim)))
+    print("det: ", det, ", b1: ", b1_mag, " hermite: ", hermite_factor)
+    return hermite_factor
+
 
 
 if args.write_bases:
-    with open(args.bases_out, "wb") as bases_out:      
+    with open(args.bases_out, "wb") as bases_out, open(args.hr_bases_out, "w") as hr_bases_out:      
         rng = default_rng()
         
         n = args.n
         m = args.m
         q = args.q
         np.save(bases_out, np.array([n, m, q]))
-        for i in range(3):
-            possible_basis = get_basis_qary(n, m, q, rng)
-            H, L = row_style_hermite_normal_form(possible_basis)
-            possible_basis = H
-            possible_basis = strip_zero_rows(possible_basis)
-            if len(possible_basis) == n:
+        tracker = np.zeros(4)
+        for n in range(8, 12):
+            #possible_basis = get_basis_qary(n, m, q, rng)
+            #H, L = row_style_hermite_normal_form(possible_basis)
+            #possible_basis = H
+            #possible_basis = strip_zero_rows(possible_basis)
+            for i in range(100):
+            #if len(possible_basis) == n:
+                possible_basis = get_basis_hnf(n, 300, default_rng())
                 print(possible_basis)
-                np.save(bases_out, possible_basis)
+                hr_bases_out.write(str(possible_basis) + "\n*\n")
+                np.save(bases_out, possible_basis, allow_pickle=False)
+                tracker[n-8] += 1
+                print(tracker)
+            hr_bases_out.write("\n*\n")
+
 if args.write_hermite:
     with open(args.hermite_out, "w") as hermite_out, open(args.bases_in, "rb") as bases_in:
         print("\n\n\n HERMITE")
         params = np.load(bases_in)
         (n, m, q) = (params[0], params[1], params[2])
+        print(n, m, q)
         array_in_question = np.load(bases_in)
         while(True):
-            print(array_in_question) 
-            try:
+            for i in range(100):
+                print(array_in_question) 
+                #try:
                 #print([math.sqrt(sum(x)) for x in array_in_question])
                 array_in_question = np.array(sorted(array_in_question, key=lambda x: math.sqrt(sum([y**2 for y in x]))))
                 print(array_in_question)
-                det = math.sqrt(np.linalg.det(np.matmul(array_in_question, array_in_question.transpose())))
-                b1 = math.sqrt(sum(array_in_question[0]))
-                hermite_factor = float(b1) / float(det)
-                print("det: ", det, ", b1: ", b1, " hermite: ", hermite_factor)
+                hermite_factor = calc_hermite_factor(array_in_question)
                 hermite_out.write(str(hermite_factor) + "\n")
                 array_in_question = np.load(bases_in)
-            except Exception as exception:
-                print("exception in hermite while loop", exception)
-                break
+                #except Exception as exception:
+                #    print("exception in hermite while loop:", exception)
+                #    break
+            hermite_out.write(" \n")
