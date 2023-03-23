@@ -78,6 +78,16 @@ def get_basis_cyclic(n, q, rng):
     pass
 
 
+
+#generate random hnf of lattice via https://link.springer.com/chapter/10.1007/11792086_18
+def get_basis_hnf_prime_p(n, p, rng):
+    A = np.identity(n)
+    #print(A)
+    first_col = np.random.randint(0, p, (n-1, 1))
+    first_col = np.insert(first_col, 0, p)
+    A[:, 0] = first_col
+    print(A)
+
 # generate basis from solution to system of congruences - Ajtai
 def get_basis_qary(n, m, q, rng):
     A = rng.integers(low=0, high=q, size=(n,m))
@@ -229,7 +239,12 @@ def calc_hermite_factor(reduced_input_basis):
     print("det: ", det, ", b1: ", b1_mag, " hermite: ", hermite_factor)
     return hermite_factor
 
-
+rng = default_rng()
+n = 5
+p = 71  
+for i in range(3):
+    print(i)
+    get_basis_hnf_prime_p(n, p, rng)        
 
 if args.write_bases:
     with open(args.bases_out, "wb") as bases_out, open(args.hr_bases_out, "w") as hr_bases_out:      
