@@ -87,6 +87,7 @@ def get_basis_hnf_prime_p(n, p, rng):
     first_col = np.insert(first_col, 0, p)
     A[:, 0] = first_col
     print(A)
+    return A
 
 # generate basis from solution to system of congruences - Ajtai
 def get_basis_qary(n, m, q, rng):
@@ -239,12 +240,6 @@ def calc_hermite_factor(reduced_input_basis):
     print("det: ", det, ", b1: ", b1_mag, " hermite: ", hermite_factor)
     return hermite_factor
 
-rng = default_rng()
-n = 5
-p = 71  
-for i in range(3):
-    print(i)
-    get_basis_hnf_prime_p(n, p, rng)        
 
 if args.write_bases:
     with open(args.bases_out, "wb") as bases_out, open(args.hr_bases_out, "w") as hr_bases_out:      
@@ -255,14 +250,16 @@ if args.write_bases:
         q = args.q
         np.save(bases_out, np.array([n, m, q]))
         tracker = np.zeros(4)
-        for n in range(8, 12):
+        for n in range(4, 12):
             #possible_basis = get_basis_qary(n, m, q, rng)
             #H, L = row_style_hermite_normal_form(possible_basis)
             #possible_basis = H
             #possible_basis = strip_zero_rows(possible_basis)
             for i in range(100):
             #if len(possible_basis) == n:
-                possible_basis = get_basis_hnf(n, 300, default_rng())
+                print(i)
+                possible_basis = get_basis_hnf_prime_p(n, 293, default_rng())
+                possible_basis = possible_basis.astype(int)
                 print(possible_basis)
                 hr_bases_out.write(str(possible_basis) + "\n*\n")
                 np.save(bases_out, possible_basis, allow_pickle=False)
